@@ -16,7 +16,7 @@ function Recorder() {
         video: true,
         audio: true,
       });
-      videoRef.current.srcObject = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
       const recorder = new MediaRecorder(stream, {
         mimeType: "video/webm",
       });
@@ -41,13 +41,15 @@ function Recorder() {
     }
   }, [captureStream, recorder]);
 
-  const handleDownload = useCallback((url) => {
+  const handleDownload = useCallback((url: string) => {
     const a = document.createElement("a");
     a.href = url;
     a.download = "stream.webm";
     a.click();
-    videoRef.current.controls = true;
-    videoRef.current.src = url;
+    if (videoRef.current) {
+      videoRef.current.controls = true;
+      videoRef.current.src = url;
+    }
   }, []);
 
   const handleStopStream = useCallback(() => {
@@ -59,12 +61,13 @@ function Recorder() {
       captureStream.getTracks().forEach((track) => track.stop());
       setCaptureStream(undefined);
       // set the video src to the video chunks
-      videoRef.current.srcObject = null;
-      videoRef.current.src = new URL.createObjectURL(
-        new Blob(videoChunks, {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        const blob = new Blob(videoChunks, {
           type: "video/webm",
-        })
-      );
+        });
+        videoRef.current.src = URL.createObjectURL(blob);
+      }
     }
   }, [captureStream, recorder, videoChunks]);
 
@@ -104,8 +107,14 @@ function Recorder() {
         setRecorder(null);
         setRecording(false);
         setTimer(3);
-        videoRef.current.srcObject = null;
-        videoRef.current.src = new URL.createObjectURL(new Blob(videoChunks));
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+          const blob = new Blob(videoChunks, {
+            type: "video/webm",
+          });
+          const src = URL.createObjectURL(blob);
+          videoRef.current.src = src;
+        }
       }
     };
     window.addEventListener("beforeunload", handleWindowClose);
@@ -116,8 +125,10 @@ function Recorder() {
 
   useEffect(() => {
     if (recording) {
-      videoRef.current.srcObject = captureStream;
-      videoRef.current.autoplay = true;
+      if (videoRef.current) {
+        videoRef.current.srcObject = captureStream ?? null;
+        videoRef.current.autoplay = true;
+      }
     }
   }, [captureStream, recording]);
 
@@ -168,7 +179,9 @@ function Recorder() {
         {!recording && videoChunks.length > 0 ? (
           <button
             className="shadow flex justify-center items-center gap-2 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-            onClick={() => handleDownload(videoRef.current.src)}
+            onClick={() =>
+              videoRef.current && handleDownload(videoRef.current.src)
+            }
           >
             <FaDownload />
             Download
